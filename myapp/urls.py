@@ -27,6 +27,7 @@ urlpatterns = [
     path('pending/',pending), 
     path('paybill/<int:id>/',paybill),
     path('patientstatus/<int:id>/<int:pk>/',patientstatus),
+    path('patient_detail/<int:id>/',patient_detail), 
     path('patient_detail/<int:id>/',patient_detail),
 
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
