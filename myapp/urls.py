@@ -1,6 +1,6 @@
 
 from . import views 
-from .views import patient_detail,doctor_detail,apointment_detail,bill_detail,signup,login,check,newapi,pending,patientstatus,paybill,patient_detail
+from .views import patient_detail,doctor_detail,apointment_detail,bill_detail,signup,login,check,newapi,pending,patientstatus,paybill,patient_detail,patient_details
 from .views import login 
 from django.urls import path  
 from rest_framework_simplejwt.views import (
@@ -12,7 +12,7 @@ from rest_framework_simplejwt.views import (
 
 
 urlpatterns = [
-    path("patient/",patient_detail),
+    path("patient/",patient_details),
     path("patient/<int:id>/",patient_detail), 
     path("apointment/",apointment_detail),
     path("apointment/<int:id>/",apointment_detail), 
@@ -22,7 +22,7 @@ urlpatterns = [
     path("bill/<int:id>/",bill_detail),  
     path("signup/",signup), 
     path("login/",login), 
-    path('manage/',check),
+    path('manage/',check), 
     path('upcoming/',newapi), 
     path('pending/',pending), 
     path('paybill/<int:id>/',paybill),

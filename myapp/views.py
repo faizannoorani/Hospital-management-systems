@@ -20,6 +20,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import SignupSerializer 
 from rest_framework_simplejwt.authentication import JWTAuthentication 
 from .decorators import superuser_required 
+from .decorators import Patient_required 
+from .decorators import doctor_required 
+from .decorators import admin_required 
+from django.contrib.auth.models import User
+
 
 
 
@@ -62,21 +67,39 @@ def check(request):
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny]) 
+@permission_classes([AllowAny])  
+@Patient_required 
 def login(request):
     username = request.data.get("username")
     password = request.data.get("password") 
 
-    user = authenticate(username=username, password=password)
-    if user is not None: 
+    obj = authenticate(username=username, password=password) 
+    if obj is not None: 
+        refresh = RefreshToken.for_user(obj) 
+       
+        try:
+            patient = Patients.objects.get(user=obj) 
+            ser = PatientGETserializer(patient)
+            return JsonResponse(ser.data, status=status.HTTP_200_OK)
+        except Patients.DoesNotExist:
+            pass
 
-        refresh = RefreshToken.for_user(user) 
         return Response({
             "refresh": str(refresh),
             "access": str(refresh.access_token),
         }, status=status.HTTP_200_OK)
-    else: 
-        return Response({"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED) 
+
+    return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    
+
+    
+
+    
+    
+    
+    
+
+    
     
 
 
@@ -84,11 +107,10 @@ def login(request):
 
 @api_view(["GET","POST",'PUT','DELETE','PATCH']) 
  
-
-
 @authentication_classes([JWTAuthentication]) 
-@permission_classes([IsAuthenticated])
-def patient_detail(request,id=None):
+@permission_classes([IsAuthenticated]) 
+@Patient_required
+def patient_details(request,id=None):
 
     if request.method=='GET': 
         get_patient=Patients.objects.select_related('dep','doctor').all() 
@@ -97,7 +119,7 @@ def patient_detail(request,id=None):
     elif request.method=='POST': 
         ser=PatientPOSTserializer(data=request.data) 
         if ser.is_valid():
-            ser.save()
+            ser.save(user=request.user) 
             return JsonResponse(ser.data,status=status.HTTP_201_CREATED)
         return JsonResponse(ser.errors,status=status.HTTP_400_BAD_REQUEST)   
     
@@ -125,7 +147,7 @@ def patient_detail(request,id=None):
 @authentication_classes([JWTAuthentication]) 
 @permission_classes([IsAuthenticated])
 
-
+@doctor_required
 def doctor_detail(request,id=None): 
     if request.method=='DELETE':   
       doc=Doctor.objects.get(id=id) 
@@ -166,7 +188,8 @@ def doctor_detail(request,id=None):
 
 @api_view(['POST','GET','PUT','PATCH','DELETE'])  
 @authentication_classes([JWTAuthentication]) 
-@permission_classes([IsAuthenticated]) 
+@permission_classes([IsAuthenticated])  
+@admin_required
 def apointment_detail(request,id=None ): 
     if request.method=='POST':
         ser=ApointmentPOSTserializer(data=request.data) 
@@ -204,7 +227,7 @@ def apointment_detail(request,id=None ):
 
 @authentication_classes([JWTAuthentication]) 
 @permission_classes([IsAuthenticated]) 
-
+@Patient_required 
 def bill_detail(request,id=None ): 
  if request.method=='POST':
      ser=BillPOSTserializer(data=request.data)
@@ -290,7 +313,7 @@ def patientstatus(request,id=None,pk=None):
 
 @api_view(['POST']) 
 @permission_classes([AllowAny]) 
-
+@Patient_required 
 def paybill(request,id=None): 
     apoint=Bill.objects.get(appointment_id=id)
     ser=Billpaidserializer(apoint,data=request.data)  
@@ -304,6 +327,7 @@ def paybill(request,id=None):
 
 
 @api_view(['GET']) 
+@Patient_required
 @permission_classes([AllowAny]) 
 def patient_detail(request,id=None): 
     data=Doctor.objects.prefetch_related('patient_detail','appointment').select_related('department').get(id=id)   

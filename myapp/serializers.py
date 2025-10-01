@@ -3,31 +3,39 @@ from . models import Department
 from . models import Patients 
 from . models import Doctor 
 from . models import Apointment 
-from . models import Bill 
+from . models import Bill ,USER_DETAIL
 from .utils import ApointmentstatusEnum 
 from datetime import date 
 from django.http import JsonResponse
 
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from .models import User 
 
+class Userserializer(serializers.ModelSerializer):
+
+   class Meta: 
+      fields=['role'] 
 class SignupSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True) 
+    role=serializers.ChoiceField(choices=USER_DETAIL.ROLE_CHOICES)  
 
     class Meta:
         model = User
-        fields = ["username", "password"]
+        fields = ["username", "password","role"] 
+        
 
     def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data["username"],
-            password=validated_data["password"]
-        )
-        return user  
+        role = validated_data.pop("role")
+        user = User.objects.create_user(**validated_data)   # normal user banta hai
+        USER_DETAIL.objects.create(user=user, role=role)        # profile ban rahi hai role ke sath
+        return user
     
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
-    password = serializers.CharField(write_only=True) 
+    password = serializers.CharField(write_only=True)  
+
+    class Meta:
+       fields=['username','password'] 
 
 
 
@@ -83,20 +91,32 @@ class PatientGETserializer(serializers.ModelSerializer):
     model=Patients
     fields=["name","date_of_birth","phone_no","dep","doctor"]   
 
-def phone(value):
-   if value.len() < 11 or value.len() > 11 :
-      raise serializers.ValidationError("PLEASE ENTER CORRECT PHONE NUMBER ")  
-   return value 
+
+
+
+
          
 
-def date_in_past(value): 
-   date='2009-01-02'
-   
-   if date.today() < value :
-      raise serializers.ValidationError("PLEASE ENTER CORRECT DATE OF BIRTH  ") 
-   
-        
-   return value  
+from datetime import datetime, date
+from rest_framework import serializers
+
+def date_in_past(value):
+    # value ko date object me convert karo agar string ho
+    if isinstance(value, str):
+        value = datetime.strptime(value, "%Y-%m-%d").date()
+    
+    # 2009-01-02 se pehle ka date invalid
+    min_date = date(2009, 1, 2)
+    
+    if value < min_date:
+        raise serializers.ValidationError("Please enter a valid date of birth after 2009-01-02")
+    
+    # future date invalid
+    if value > date.today():
+        raise serializers.ValidationError("Date of birth cannot be in the future.")
+    
+    return value
+
 
 
 class DepartmentGETserializer(serializers.ModelSerializer): 
@@ -112,7 +132,7 @@ class PatientPOSTserializer(serializers.ModelSerializer):
    dep=serializers.PrimaryKeyRelatedField(queryset=Department.objects.all()) 
    doctor=serializers.PrimaryKeyRelatedField(queryset=Doctor.objects.all()) 
    date_of_birth=serializers.DateField(validators=[date_in_past]) 
-   phone_no=serializers.IntegerField(validators=[phone]) 
+   phone_no=serializers.IntegerField()
 
    class Meta:
       model=Patients 

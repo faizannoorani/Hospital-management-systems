@@ -1,5 +1,20 @@
 from django.db import models 
+from django.contrib.auth.models import User
 
+
+
+
+class USER_DETAIL(models.Model):
+    ROLE_CHOICES = (
+        ('doctor', 'Doctor'),
+        ('patient', 'Patient'),
+        ('staff', 'Staff'),
+        ('admin', 'Admin'),
+    )
+    user=models.OneToOneField(User,on_delete=models.CASCADE)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+
+    
 class Department (models.Model):
     name=models.CharField(max_length=30) 
     discription=models.CharField(max_length=100) 
@@ -21,6 +36,7 @@ class Doctor(models.Model):
         db_table='Doctors' 
 
 class Patients(models.Model):
+    user=models.OneToOneField(User,on_delete=models.CASCADE) 
     name=models.CharField(max_length=40) 
     date_of_birth=models.DateField() 
     doctor=models.ForeignKey(Doctor,on_delete=models.CASCADE,related_name='patient_detail')  
@@ -33,7 +49,7 @@ class Patients(models.Model):
 
     class Meta:
         db_table='Patients' 
-
+ 
 class Apointment(models.Model):
     patient=models.ForeignKey(Patients,on_delete=models.CASCADE,related_name='appointment') 
     doctor=models.ForeignKey(Doctor,on_delete=models.CASCADE,related_name='appointment') 
