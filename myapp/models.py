@@ -25,6 +25,7 @@ class Department (models.Model):
     class Meta:
         db_table='Department'
 class Doctor(models.Model):
+    user=models.OneToOneField(User,on_delete=models.CASCADE)
     name=models.CharField(max_length=30)  
     specialization=models.CharField(max_length=40) 
     department=models.ForeignKey(Department,on_delete=models.CASCADE)    
@@ -67,7 +68,7 @@ class Apointment(models.Model):
 
 
 class Bill(models.Model):
-    appointment=models.OneToOneField(Apointment,on_delete=models.CASCADE) 
+    appointment=models.OneToOneField(Apointment,on_delete=models.CASCADE,related_name='bill_detail') 
     amount=models.IntegerField() 
     total_amount=models.IntegerField(default=12000) 
     amount_status=models.CharField(max_length=40,default='PENDING') 

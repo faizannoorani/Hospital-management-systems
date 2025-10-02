@@ -51,7 +51,7 @@ class Doctorextraserializer(serializers.ModelSerializer):
 
 
 
-class PatientGETserializer(serializers.ModelSerializer):
+class PatientsGETserializer(serializers.ModelSerializer):
 
  dep=serializers.StringRelatedField()
  doctor=Doctorextraserializer()
@@ -66,30 +66,63 @@ class PatientGETserializer(serializers.ModelSerializer):
 class Doctorserializer(serializers.ModelSerializer):
    
    department=serializers.StringRelatedField()  
-   patients=PatientGETserializer(read_only=True,many=True) 
+   patient_detail=PatientsGETserializer(read_only=True,many=True) 
 
    class Meta:
       model=Doctor 
-      fields=["name","specialization","department","patients"]  
+      fields=["name","specialization","department","patient_detail"]  
 
 class DoctorPOSTserializer(serializers.ModelSerializer): 
    department=serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
 
    class Meta: 
       model=Doctor
-      fields=["name","speacialization","department"]  
+      fields=["name","specialization","department"]  
 
 
 
-class PatientGETserializer(serializers.ModelSerializer):
 
- dep=serializers.StringRelatedField()
- doctor=Doctorserializer()
+      ## Login detail for patient....... 
+
+
+class Doctornewserializer(serializers.ModelSerializer):
+    class Meta:
+        model = Doctor
+        fields = ['name']
+
+
+class BillGETserializer(serializers.ModelSerializer): 
+    
+  
+
+
+
+   class Meta: 
+      model=Bill 
+      fields=["amount","generated_at","total_amount","amount_status"] 
+
+class ApointmentGETserializer(serializers.ModelSerializer): 
+   bill_detail=BillGETserializer()
+  
+   class Meta: 
+      model=Apointment
+      fields=["status","date","bill_detail"]    
+
+class PatientGETserializer(serializers.ModelSerializer): 
+ 
+
+ 
+ appointment=ApointmentGETserializer(many=True,read_only=True)
+ doctor=Doctornewserializer()
 
 
  class Meta:
     model=Patients
-    fields=["name","date_of_birth","phone_no","dep","doctor"]   
+    fields=["name","date_of_birth","phone_no","dep","doctor","appointment"]     
+    read_only_fields=['user']
+
+
+         
 
 
 
@@ -99,6 +132,20 @@ class PatientGETserializer(serializers.ModelSerializer):
 
 from datetime import datetime, date
 from rest_framework import serializers
+
+
+####
+
+
+class DepartmentGETserializer(serializers.ModelSerializer): 
+    patients=PatientGETserializer(source='patient_set')
+    doctors=serializers.StringRelatedField(source='doctor_set',many=True) 
+
+    class Meta:
+        model=Department 
+        fields=["name","discription","patients","doctors"]   
+
+
 
 def date_in_past(value):
     # value ko date object me convert karo agar string ho
@@ -116,17 +163,6 @@ def date_in_past(value):
         raise serializers.ValidationError("Date of birth cannot be in the future.")
     
     return value
-
-
-
-class DepartmentGETserializer(serializers.ModelSerializer): 
-    patients=PatientGETserializer(source='patient_set')
-    doctors=serializers.StringRelatedField(source='doctor_set',many=True) 
-
-    class Meta:
-        model=Department 
-        fields=["name","discription","patients","doctors"]   
-
       
 class PatientPOSTserializer(serializers.ModelSerializer):
    dep=serializers.PrimaryKeyRelatedField(queryset=Department.objects.all()) 
@@ -137,6 +173,7 @@ class PatientPOSTserializer(serializers.ModelSerializer):
    class Meta:
       model=Patients 
       fields=["name","date_of_birth","dep","doctor","phone_no"] 
+      
 
 
 class ApointmentGETserializer(serializers.ModelSerializer): 
@@ -146,18 +183,18 @@ class ApointmentGETserializer(serializers.ModelSerializer):
 
    class Meta: 
       model=Apointment 
-      fields=["date","status","patient","doctor"]   
+      fields=["date","status","doctor"]   
 
 
 
 class ApointmentPOSTserializer(serializers.ModelSerializer): 
-   patient=serializers.PrimaryKeyRelatedField(queryset=Patients.objects.all())     
+        
    doctor=serializers.PrimaryKeyRelatedField(queryset=Doctor.objects.all())   
    date=serializers.DateField() 
 
    class Meta: 
       model=Apointment 
-      fields=["patient","doctor","status","date"] 
+      fields=["doctor","status","date"] 
 
    def validate_status(self, value):
         # check if value is valid Enum name
@@ -314,6 +351,16 @@ class Doctornewserializer(serializers.ModelSerializer):
    class Meta:
       model=Doctor 
       fields=["department","patient_detail"]  
+ 
+
+
+class Patientnewserializer(serializers.ModelSerializer):
+    appointment = Apointmentnewserializer(read_only=True)
+    Pending_amount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bill
+        fields = ["amount", "generated_at", "total_amount", "amount_status", "Pending_amount", "appointment"]
 
   
 

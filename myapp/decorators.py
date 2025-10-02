@@ -47,7 +47,7 @@ def doctor_required(view_func):
 
         
         if request.user.user_detail.role not in ["doctor", "Doctor"]:
-         return Response({"error": "Only patients can access this"}, status=status.HTTP_403_FORBIDDEN)
+         return Response({"error": "Only doctors can access this"}, status=status.HTTP_403_FORBIDDEN)
         return view_func(request, *args, **kwargs)
 
      return _wrapped_view 

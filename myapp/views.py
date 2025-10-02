@@ -4,7 +4,7 @@ from rest_framework.authentication import BasicAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers 
 from .models import Department,Patients,Doctor,Apointment,Bill 
-from .serializers import DepartmentGETserializer,PatientGETserializer,Doctorserializer,ApointmentGETserializer,PatientPOSTserializer,ApointmentPOSTserializer,BillPOSTserializer,BillGETserializer,DoctorPOSTserializer,Billnewserializer,Billpaidserializer,Doctornewserializer
+from .serializers import DepartmentGETserializer,PatientGETserializer,Doctorserializer,ApointmentGETserializer,PatientPOSTserializer,ApointmentPOSTserializer,BillPOSTserializer,BillGETserializer,DoctorPOSTserializer,Billnewserializer,Billpaidserializer,Doctornewserializer,PatientsGETserializer
 from rest_framework.decorators  import api_view ,authentication_classes,permission_classes
 from django.http import JsonResponse 
 from rest_framework import status  
@@ -24,6 +24,7 @@ from .decorators import Patient_required
 from .decorators import doctor_required 
 from .decorators import admin_required 
 from django.contrib.auth.models import User
+from.models import USER_DETAIL
 
 
 
@@ -68,28 +69,49 @@ def check(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])  
-@Patient_required 
-def login(request):
+
+
+
+
+def login(request): 
     username = request.data.get("username")
     password = request.data.get("password") 
 
-    obj = authenticate(username=username, password=password) 
-    if obj is not None: 
-        refresh = RefreshToken.for_user(obj) 
-       
+    user = authenticate(username=username, password=password) 
+    if user is None:
+        return JsonResponse({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    refresh = RefreshToken.for_user(user) 
+
+  
+    try:
+        role = user.user_detail.role
+    except USER_DETAIL.DoesNotExist:
+        role = None
+
+    if role == 'patient' or role == 'Patient': 
         try:
-            patient = Patients.objects.get(user=obj) 
-            ser = PatientGETserializer(patient)
-            return JsonResponse(ser.data, status=status.HTTP_200_OK)
+            dataa = Patients.objects.prefetch_related('appointment','appointment__bill_detail').select_related('doctor').get(user=user)
+            ser = PatientsGETserializer(dataa) 
+            return JsonResponse(ser.data, status=status.HTTP_200_OK) 
         except Patients.DoesNotExist:
-            pass
+            pass 
 
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        }, status=status.HTTP_200_OK)
+    elif role == 'doctor' or role == 'Doctor':
+        try:
+            data = Doctor.objects.prefetch_related('patient_detail').get(user=user)
+            ser = Doctorserializer(data) 
+            return JsonResponse(ser.data, status=status.HTTP_200_OK)
+        except Doctor.DoesNotExist:
+            pass 
 
-    return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    return JsonResponse({
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+    }, status=status.HTTP_200_OK)
+
+       
     
 
     
@@ -127,7 +149,7 @@ def patient_details(request,id=None):
         patient=Patients.objects.get(id=id)
         ser=PatientPOSTserializer(patient,data=request.data) 
         if ser.is_valid():
-            ser.save() 
+            ser.save(user=request.user) 
             return JsonResponse(ser.data,status=status.HTTP_201_CREATED) 
         return JsonResponse(ser.errors,status=status.HTTP_403_FORBIDDEN) 
     elif request.method=='DELETE':
@@ -156,7 +178,7 @@ def doctor_detail(request,id=None):
 
 
     elif request.method=='GET': 
-     doctor=Doctor.objects.prefetch_related('patients').select_related('department').all() 
+     doctor=Doctor.objects.prefetch_related('patient_detail').select_related('department').all() 
      ser=Doctorserializer(doctor,many=True)
      return JsonResponse(ser.data,safe=False,status=status.HTTP_200_OK)  
     elif request.method=='PATCH':
@@ -169,7 +191,7 @@ def doctor_detail(request,id=None):
     elif request.method=='POST':
         ser=DoctorPOSTserializer(data=request.data) 
         if ser.is_valid(): 
-            ser.save() 
+            ser.save(user=request.user) 
             return JsonResponse(ser.data,status=status.HTTP_201_CREATED) 
         return JsonResponse(ser.errors,status=status.HTTP_203_NON_AUTHORITATIVE_INFORMATION) 
     elif request.method=="PUT": 
@@ -189,12 +211,14 @@ def doctor_detail(request,id=None):
 @api_view(['POST','GET','PUT','PATCH','DELETE'])  
 @authentication_classes([JWTAuthentication]) 
 @permission_classes([IsAuthenticated])  
-@admin_required
+@Patient_required
+
 def apointment_detail(request,id=None ): 
     if request.method=='POST':
         ser=ApointmentPOSTserializer(data=request.data) 
         if ser.is_valid():
-            ser.save() 
+            ser.save(user=request.user) 
+           
             return JsonResponse(ser.data,status=status.HTTP_201_CREATED)
         return JsonResponse(ser.errors,status=status.HTTP_400_BAD_REQUEST)  
     elif request.method=='GET': 
@@ -259,7 +283,7 @@ def bill_detail(request,id=None ):
 @api_view(['DELETE']) 
 @authentication_classes([JWTAuthentication]) 
 @permission_classes([IsAuthenticated])
-def bill_detail(request, id):
+def bill_detail(request, id): 
     if request.method == 'DELETE':
         try:
             bill = Bill.objects.get(id=id)
