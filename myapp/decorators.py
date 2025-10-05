@@ -30,7 +30,7 @@ def Patient_required(view_func):
             return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
 
         
-        if request.user.user_detail.role not in ["patient", "Patient"]:
+        if request.user.user_detail.role.lower()  not in ["patient", "Patient"]:
          return Response({"error": "Only patients can access this"}, status=status.HTTP_403_FORBIDDEN)
         return view_func(request, *args, **kwargs)
 

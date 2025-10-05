@@ -1,6 +1,6 @@
 
 from . import views 
-from .views import patient_detail,doctor_detail,apointment_detail,bill_detail,signup,login,check,newapi,pending,patientstatus,paybill,patient_detail,patient_details
+from .views import patient_detail,doctor_detail,apointment_detail,bill_details,signup,login,bill_detail,check,newapi,pending,patientstatus,paybill,patient_detail,patient_details
 from .views import login 
 from django.urls import path  
 from rest_framework_simplejwt.views import (
@@ -18,9 +18,9 @@ urlpatterns = [
     path("apointment/<int:id>/",apointment_detail), 
     path("doctor/",doctor_detail),
     path("doctor/<int:id>/",doctor_detail),
-    path("bill/",bill_detail),
-    path("bill/<int:id>/",bill_detail),  
-    path("signup/",signup), 
+    path("bill/",bill_details),
+    path("bills/",bill_detail),  
+    path("signup/",signup),  
     path("login/",login), 
     path('manage/',check), 
     path('upcoming/',newapi), 
@@ -34,3 +34,6 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
     
 ]   
+
+
+

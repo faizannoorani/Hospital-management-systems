@@ -52,6 +52,7 @@ class Patients(models.Model):
         db_table='Patients' 
  
 class Apointment(models.Model):
+    user=models.OneToOneField(User,on_delete=models.CASCADE)
     patient=models.ForeignKey(Patients,on_delete=models.CASCADE,related_name='appointment') 
     doctor=models.ForeignKey(Doctor,on_delete=models.CASCADE,related_name='appointment') 
     date=models.DateField() 
@@ -68,6 +69,7 @@ class Apointment(models.Model):
 
 
 class Bill(models.Model):
+   
     appointment=models.OneToOneField(Apointment,on_delete=models.CASCADE,related_name='bill_detail') 
     amount=models.IntegerField() 
     total_amount=models.IntegerField(default=12000) 

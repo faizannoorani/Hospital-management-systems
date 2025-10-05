@@ -91,9 +91,18 @@ def login(request):
 
     if role == 'patient' or role == 'Patient': 
         try:
+           
             dataa = Patients.objects.prefetch_related('appointment','appointment__bill_detail').select_related('doctor').get(user=user)
             ser = PatientsGETserializer(dataa) 
-            return JsonResponse(ser.data, status=status.HTTP_200_OK) 
+
+            
+            return JsonResponse(ser.data, status=status.HTTP_200_OK)  
+            
+           
+
+       
+            
+        
         except Patients.DoesNotExist:
             pass 
 
@@ -214,13 +223,19 @@ def doctor_detail(request,id=None):
 @Patient_required
 
 def apointment_detail(request,id=None ): 
-    if request.method=='POST':
-        ser=ApointmentPOSTserializer(data=request.data) 
-        if ser.is_valid():
-            ser.save(user=request.user) 
-           
-            return JsonResponse(ser.data,status=status.HTTP_201_CREATED)
-        return JsonResponse(ser.errors,status=status.HTTP_400_BAD_REQUEST)  
+    if request.method =='POST':
+
+
+       serializer = ApointmentPOSTserializer(
+        data=request.data,
+        context={'request': request}   # 👈 zaroori hai
+    )
+       if serializer.is_valid():
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=201)
+       return Response(serializer.errors, status=400)
+    
+
     elif request.method=='GET': 
         apoint=Apointment.objects.select_related('doctor','patient').all()  
         ser=ApointmentGETserializer(apoint,many=True) 
@@ -252,13 +267,18 @@ def apointment_detail(request,id=None ):
 @authentication_classes([JWTAuthentication]) 
 @permission_classes([IsAuthenticated]) 
 @Patient_required 
-def bill_detail(request,id=None ): 
- if request.method=='POST':
-     ser=BillPOSTserializer(data=request.data)
-     if ser.is_valid():
-        ser.save() 
-        return JsonResponse(ser.data,status=status.HTTP_201_CREATED) 
-     return JsonResponse(ser.errors,status=status.HTTP_400_BAD_REQUEST) 
+def bill_details(request,id=None ): 
+ if request.method =='POST':
+
+
+       serializer = BillPOSTserializer(
+        data=request.data,
+        context={'request': request}   # 👈 zaroori hai
+    )
+       if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=201)
+       return Response(serializer.errors, status=400)
  elif request.method=='GET':
      bill=Bill.objects.select_related('appointment').all()
      ser=BillGETserializer(bill,many=True)

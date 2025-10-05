@@ -10,6 +10,8 @@ from django.http import JsonResponse
 
 from rest_framework import serializers
 from .models import User 
+from django.contrib.auth.models import User
+from rest_framework import status 
 
 class Userserializer(serializers.ModelSerializer):
 
@@ -188,13 +190,14 @@ class ApointmentGETserializer(serializers.ModelSerializer):
 
 
 class ApointmentPOSTserializer(serializers.ModelSerializer): 
-        
+  
    doctor=serializers.PrimaryKeyRelatedField(queryset=Doctor.objects.all())   
-   date=serializers.DateField() 
+   date=serializers.DateField()  
 
    class Meta: 
       model=Apointment 
-      fields=["doctor","status","date"] 
+      fields=["doctor","status","date"]
+      read_only_fields=['patient'] 
 
    def validate_status(self, value):
         # check if value is valid Enum name
@@ -210,16 +213,45 @@ class ApointmentPOSTserializer(serializers.ModelSerializer):
       return value 
    
 
+   
+       
+   def create(self, validated_data):
+    request = self.context['request']
+    user = request.user 
+
+
+    
+    try:
+        patient = Patients.objects.get(user=user)
+    except Patients.DoesNotExist:
+        raise serializers.ValidationError("Please create your patient profile first.")
+
+    
+    appointment = Apointment.objects.create(
+        patient=patient,
+        **validated_data
+    )
+    return appointment
+
+
+
+
+
+      
+      
+      
+
+
 
 class BillPOSTserializer(serializers.ModelSerializer):
-   appointment=serializers.PrimaryKeyRelatedField(queryset=Apointment.objects.all())   
+  
    amount=serializers.IntegerField() 
    total_amount=serializers.IntegerField(read_only=True,default=12000) 
    amount_status=serializers.CharField(read_only=True) 
 
    class Meta:  
       model=Bill 
-      fields=["amount","amount_status","generated_at","appointment","total_amount"]  
+      fields=["amount","amount_status","generated_at","total_amount"]  
       read_only_fields = ["total_amount","amount_status"] 
 
    def create(self, validated_data):
@@ -239,7 +271,23 @@ class BillPOSTserializer(serializers.ModelSerializer):
     validated_data['amount_status'] = amount_status
 
     
-    return Bill.objects.create(**validated_data)
+    return Bill.objects.create(**validated_data) 
+   
+
+   def create(self,validate_data):
+       request = self.context['request']
+       user = request.user 
+    
+       try:
+         apppointment= Apointment.objects.get(user=user) 
+
+       except Apointment.DoesNotExist:
+          raise serializers.ValidationError({'message':'Appointment does not exist '},status=status.HTTP_204_NO_CONTENT)
+   
+       apointment=Bill.objects.create(appointment=apppointment,**validate_data) 
+       return apointment
+      
+
 class BillGETserializer(serializers.ModelSerializer):
    appointment=ApointmentGETserializer()
 
@@ -364,5 +412,8 @@ class Patientnewserializer(serializers.ModelSerializer):
 
   
 
+
+
+   
 
    
