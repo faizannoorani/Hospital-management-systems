@@ -91,12 +91,16 @@ def login(request):
 
     if role == 'patient' or role == 'Patient': 
         try:
-           
+            refresh = RefreshToken.for_user(request.user)
             dataa = Patients.objects.prefetch_related('appointment','appointment__bill_detail').select_related('doctor').get(user=user)
             ser = PatientsGETserializer(dataa) 
 
             
-            return JsonResponse(ser.data, status=status.HTTP_200_OK)  
+            return JsonResponse({
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+        "user":ser.data
+    }, status=status.HTTP_200_OK)  
             
            
 
@@ -108,9 +112,14 @@ def login(request):
 
     elif role == 'doctor' or role == 'Doctor':
         try:
+            refresh = RefreshToken.for_user(request.user)
             data = Doctor.objects.prefetch_related('patient_detail').get(user=user)
             ser = Doctorserializer(data) 
-            return JsonResponse(ser.data, status=status.HTTP_200_OK)
+ 
+    
+            return JsonResponse( {"refresh": str(refresh),
+        "access": str(refresh.access_token),
+        "user":ser.data}, status=status.HTTP_200_OK)
         except Doctor.DoesNotExist:
             pass 
 
@@ -273,7 +282,7 @@ def bill_details(request,id=None ):
 
        serializer = BillPOSTserializer(
         data=request.data,
-        context={'request': request}   # 👈 zaroori hai
+        context={'request': request}   
     )
        if serializer.is_valid():
         serializer.save()
@@ -379,7 +388,7 @@ def patient_detail(request,id=None):
     
         
 
-    return JsonResponse(ser.data,safe=False,status=status.HTTP_200_OK)
+    return JsonResponse(ser.data,safe=False,status=status.HTTP_200_OK) 
     
 
 
