@@ -24,7 +24,8 @@ from .decorators import Patient_required
 from .decorators import doctor_required 
 from .decorators import admin_required 
 from django.contrib.auth.models import User
-from.models import USER_DETAIL
+from.models import USER_DETAIL 
+from .utils import User_role
 
 
 
@@ -89,7 +90,7 @@ def login(request):
     except USER_DETAIL.DoesNotExist:
         role = None
 
-    if role == 'patient' or role == 'Patient': 
+    if role.lower() == User_role.Patient.value:
         try:
             refresh = RefreshToken.for_user(request.user)
             dataa = Patients.objects.prefetch_related('appointment','appointment__bill_detail').select_related('doctor').get(user=user)
@@ -110,7 +111,7 @@ def login(request):
         except Patients.DoesNotExist:
             pass 
 
-    elif role == 'doctor' or role == 'Doctor':
+    elif role.lower()==User_role.Doctor.value:
         try:
             refresh = RefreshToken.for_user(request.user)
             data = Doctor.objects.prefetch_related('patient_detail').get(user=user)
