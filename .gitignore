@@ -1,5 +1,6 @@
 
 .env
+Hospital/.env
 myapp/.env
 __pycache__/
 *.sqlite3
