@@ -27,6 +27,9 @@ from django.contrib.auth.models import User
 from.models import USER_DETAIL 
 from .utils import User_role
 
+from .permissions import RoleBasedPermission,Apointment_permissions
+
+
 
 
 
@@ -88,11 +91,11 @@ def login(request):
     try:
         role = user.user_detail.role
     except USER_DETAIL.DoesNotExist:
-        role = None
+       return JsonResponse({'message':'id not foundd'},status=status.HTTP_400_BAD_REQUEST)
 
     if role.lower() == User_role.Patient.value:
         try:
-            refresh = RefreshToken.for_user(request.user)
+            refresh = RefreshToken.for_user(user)
             dataa = Patients.objects.prefetch_related('appointment','appointment__bill_detail').select_related('doctor').get(user=user)
             ser = PatientsGETserializer(dataa) 
 
@@ -113,7 +116,7 @@ def login(request):
 
     elif role.lower()==User_role.Doctor.value:
         try:
-            refresh = RefreshToken.for_user(request.user)
+            refresh = RefreshToken.for_user(user)
             data = Doctor.objects.prefetch_related('patient_detail').get(user=user)
             ser = Doctorserializer(data) 
  
@@ -146,18 +149,18 @@ def login(request):
 
 
 
-@api_view(["GET","POST",'PUT','DELETE','PATCH']) 
+@api_view(["GET", "POST", "PUT", "DELETE", "PATCH"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated,RoleBasedPermission])
  
-@authentication_classes([JWTAuthentication]) 
-@permission_classes([IsAuthenticated]) 
-@Patient_required
-def patient_details(request,id=None):
+
+def DETAILS (request,id=None):
 
     if request.method=='GET': 
         get_patient=Patients.objects.select_related('dep','doctor').all() 
         ser=PatientGETserializer(get_patient,many=True) 
         return JsonResponse(ser.data,safe=False,status=status.HTTP_200_OK) 
-    elif request.method=='POST': 
+    elif request.method=='POST':   
         ser=PatientPOSTserializer(data=request.data) 
         if ser.is_valid():
             ser.save(user=request.user) 
@@ -177,7 +180,7 @@ def patient_details(request,id=None):
         return JsonResponse({ 'DELETED':'DELETED SUCCESSFULYY'},status=status.HTTP_204_NO_CONTENT)  
     
     elif request.method=='PATCH':
-        patient=Patients.objects.get(id=id) 
+        patient=Patients.objects.get(id=id)
         ser=PatientPOSTserializer(patient,data=request.data,partial=True) 
         if ser.is_valid():
             ser.save() 
@@ -188,8 +191,8 @@ def patient_details(request,id=None):
 @authentication_classes([JWTAuthentication]) 
 @permission_classes([IsAuthenticated])
 
-@doctor_required
-def doctor_detail(request,id=None): 
+
+def doctor_detail(request): 
     if request.method=='DELETE':   
       doc=Doctor.objects.get(id=id) 
       doc.delete() 
@@ -229,8 +232,10 @@ def doctor_detail(request,id=None):
 
 @api_view(['POST','GET','PUT','PATCH','DELETE'])  
 @authentication_classes([JWTAuthentication]) 
-@permission_classes([IsAuthenticated])  
-@Patient_required
+@permission_classes([IsAuthenticated,Apointment_permissions])  
+
+
+
 
 def apointment_detail(request,id=None ): 
     if request.method =='POST':
@@ -246,7 +251,7 @@ def apointment_detail(request,id=None ):
        return Response(serializer.errors, status=400)
     
 
-    elif request.method=='GET': 
+    elif request.method=='GET' and id is None: 
         apoint=Apointment.objects.select_related('doctor','patient').all()  
         ser=ApointmentGETserializer(apoint,many=True) 
         return JsonResponse(ser.data,safe=False,status=status.HTTP_200_OK)   
@@ -343,10 +348,14 @@ def newapi(request):
 
 
 
-@api_view(['GET']) 
-@permission_classes([IsAuthenticated]) 
 
-@superuser_required 
+
+
+@api_view(['GET']) 
+@permission_classes([IsAuthenticated])  
+@authentication_classes([JWTAuthentication]) 
+
+
 def pending(request): 
     pend=Bill.objects.filter(amount_status='PENDING').select_related('appointment').all()
     ser=BillGETserializer(pend,many=True) 
@@ -381,9 +390,9 @@ def paybill(request,id=None):
 
 
 @api_view(['GET']) 
-@Patient_required
+@doctor_required
 @permission_classes([AllowAny]) 
-def patient_detail(request,id=None): 
+def patient(request,id=None): 
     data=Doctor.objects.prefetch_related('patient_detail','appointment').select_related('department').get(id=id)   
     ser=Doctornewserializer(data) 
     

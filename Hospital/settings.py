@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from datetime import timedelta
 
 from pathlib import Path
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,10 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0mb3bzalpb-5@!stn$r(p1ievj*o_37rio^bi%40q$f%0s+@vi'
-
+SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG")
 
 ALLOWED_HOSTS = []
 
@@ -92,12 +94,12 @@ WSGI_APPLICATION = 'Hospital.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',  # MySQL engine
-        'NAME': 'Clinic_management',                    # Database ka naam
-        'USER': 'root',                     # MySQL ka username
-        'PASSWORD': 'faizan123@A1',              # MySQL ka password
-        'HOST': 'localhost',                   # Host
-        'PORT': '3306',                         # Default MySQL port
+        'ENGINE': 'django.db.backends.mysql',  
+        'NAME': os.getenv("DATABASE_NAME"),                  
+        'USER': os.getenv("DATABASE_USER"),              
+        'PASSWORD': os.getenv("DATABASE_PASSWORD"),              
+        'HOST': 'localhost',                   
+        'PORT': '3306',                         
     } 
 }
 

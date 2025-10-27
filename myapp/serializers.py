@@ -185,7 +185,7 @@ class ApointmentGETserializer(serializers.ModelSerializer):
 
    class Meta: 
       model=Apointment 
-      fields=["date","status","doctor"]   
+      fields=["date","status","doctor","patient"]   
 
 
 
