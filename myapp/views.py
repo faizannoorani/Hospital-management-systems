@@ -7,6 +7,7 @@ from .models import Department,Patients,Doctor,Apointment,Bill
 from .serializers import DepartmentGETserializer,PatientGETserializer,Doctorserializer,ApointmentGETserializer,PatientPOSTserializer,ApointmentPOSTserializer,BillPOSTserializer,BillGETserializer,DoctorPOSTserializer,Billnewserializer,Billpaidserializer,Doctornewserializer,PatientsGETserializer
 from rest_framework.decorators  import api_view ,authentication_classes,permission_classes
 from django.http import JsonResponse 
+from django.contrib.auth import get_user_model
 from rest_framework import status  
 from rest_framework.authtoken.models import Token 
 from rest_framework.authtoken.models import Token 
@@ -17,7 +18,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import SignupSerializer 
+from .serializers import SignupSerializer ,LoginSerializer
 from rest_framework_simplejwt.authentication import JWTAuthentication 
 from .decorators import superuser_required 
 from .decorators import Patient_required 
@@ -26,23 +27,152 @@ from .decorators import admin_required
 from django.contrib.auth.models import User
 from.models import USER_DETAIL 
 from .utils import User_role
+from django.views.decorators.csrf import csrf_exempt 
+from django.db import transaction 
 
 from .permissions import RoleBasedPermission,Apointment_permissions
+from rest_framework.throttling import SimpleRateThrottle
+from .throttles import LimitedThrottle,Patientthrottles
+
+from rest_framework.decorators import api_view, throttle_classes
+from django.shortcuts import redirect
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
+import requests
 
 
 
 
 
-@api_view(["POST"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_info(request):
+    user = request.user  # already the logged-in user
+    ser = LoginSerializer(user)  # pass instance, not data=
+    return JsonResponse(ser.data)
+ 
+@api_view(['POST'])
 @permission_classes([AllowAny])
-def signup(request): 
+
+
+def google_login(request):
+    """
+    Handle Google OAuth login
+    Expects: {"access_token": "google_access_token", "role": "patient|doctor"}  
+    Returns: JWT access & refresh token + user info
+    """
+    access_token = request.data.get('access_token')
+    role = request.data.get('role')  # Get role from request
+    
+    if not access_token:
+        return Response(
+            {'error': 'access_token is required'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if not role or role not in ['patient', 'doctor']:
+        return Response(
+            {'error': 'Valid role (patient or doctor) is required'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Verify Google token
+        google_response = requests.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {access_token}'}
+        )
+        
+        if google_response.status_code != 200:
+            return Response(
+                {'error': 'Invalid Google access token'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            ) 
+        
+        user_data = google_response.json()
+        
+        User = get_user_model()
+        email = user_data.get('email')
+        
+        if not email:
+            return Response(
+                {'error': 'Email not provided by Google'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Use transaction to ensure both User and UserDetail are created together
+        with transaction.atomic():
+            # Get or create user
+            user, user_created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    'username': email,
+                    'first_name': user_data.get('given_name', ''),
+                    'last_name': user_data.get('family_name', ''),
+                }
+            )
+            
+            # Check if UserDetail already exists
+            try:
+                user_detail = USER_DETAIL.objects.get(user=user)
+                
+                # If user already exists, check if role matches
+                if user_detail.role != role:
+                    return Response({
+                        'error': f'This account is already registered as {user_detail.role}. Please login with the correct role.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Role matches, proceed with login
+                detail_created = False
+                
+            except USER_DETAIL.DoesNotExist:
+                # Create new UserDetail with the provided role
+                user_detail = USER_DETAIL.objects.create(
+                    user=user,
+                    role=role
+                )
+                detail_created = True
+        
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+        
+        return Response({
+            'refresh': str(refresh),
+            'access': str(access),
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user_detail.role,
+            },
+            'created': user_created  # Indicates if user was newly created
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+@permission_classes([AllowAny])
+@throttle_classes([LimitedThrottle])
+@api_view(['POST'])
+def signup(request):
+    print("Data received:", request.data)
     serializer = SignupSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save() 
-
-        return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)   
-
+        return Response({"message": "User created successfully"}, status=201)
+    print("Errors:", serializer.errors)  # <-- THIS will show why 400
+    return Response(serializer.errors, status=400)
 
 @api_view(['POST']) 
 @superuser_required 
@@ -71,7 +201,7 @@ def check(request):
 
 
 
-@api_view(["POST"])
+@api_view(["POST","GET"])
 @permission_classes([AllowAny])  
 
 
@@ -145,13 +275,11 @@ def login(request):
 
     
     
-
-
-
-
+@throttle_classes([Patientthrottles])
 @api_view(["GET", "POST", "PUT", "DELETE", "PATCH"])
-@authentication_classes([JWTAuthentication])
+@authentication_classes([JWTAuthentication]) 
 @permission_classes([IsAuthenticated,RoleBasedPermission])
+
  
 
 def DETAILS (request,id=None):
@@ -243,7 +371,7 @@ def apointment_detail(request,id=None ):
 
        serializer = ApointmentPOSTserializer(
         data=request.data,
-        context={'request': request}   # 👈 zaroori hai
+        context={'request': request}  
     )
        if serializer.is_valid():
         serializer.save(user=request.user)
@@ -377,13 +505,35 @@ def patientstatus(request,id=None,pk=None):
 @api_view(['POST']) 
 @permission_classes([AllowAny]) 
 @Patient_required 
-def paybill(request,id=None): 
-    apoint=Bill.objects.get(appointment_id=id)
-    ser=Billpaidserializer(apoint,data=request.data)  
-    if ser.is_valid():
-        ser.save()
-        return JsonResponse({'message':'your amount is recieved'},status=status.HTTP_201_CREATED) 
-    return JsonResponse(ser.errors,status=status.HTTP_404_NOT_FOUND)  
+
+
+
+def paybill(request):
+    try:
+        # Step 1: Get the patient of the logged-in user
+        patient = Patients.objects.get(user=request.user)
+
+        # Step 2: Get the appointment for this patient
+        appointment = Apointment.objects.filter(patient=patient).last()
+
+        # Step 3: Get the bill linked to this appointment
+        bill = Bill.objects.get(appointment=appointment)
+
+        # Step 4: Update bill with serializer
+        ser = Billpaidserializer(bill, data=request.data)
+        if ser.is_valid():
+            ser.save()
+            return JsonResponse({'message': 'Your amount is received'}, status=status.HTTP_201_CREATED)
+
+        return JsonResponse(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except Apointment.DoesNotExist:
+        return JsonResponse({'error': 'No appointment found for this patient'}, status=status.HTTP_404_NOT_FOUND)
+    except Bill.DoesNotExist:
+        return JsonResponse({'error': 'Bill not found for this appointment'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+  
 
 
 

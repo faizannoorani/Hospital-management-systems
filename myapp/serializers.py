@@ -17,20 +17,30 @@ class Userserializer(serializers.ModelSerializer):
 
    class Meta: 
       fields=['role'] 
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from .models import USER_DETAIL
+
 class SignupSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True) 
-    role=serializers.ChoiceField(choices=USER_DETAIL.ROLE_CHOICES)  
+    password = serializers.CharField(write_only=True)
+    role = serializers.ChoiceField(choices=USER_DETAIL.ROLE_CHOICES)
 
     class Meta:
         model = User
-        fields = ["username", "password","role"] 
-        
+        fields = ["username", "password", "role"]
 
     def create(self, validated_data):
+        # Extract role from validated data
         role = validated_data.pop("role")
-        user = User.objects.create_user(**validated_data)   # normal user banta hai
-        USER_DETAIL.objects.create(user=user, role=role)        # profile ban rahi hai role ke sath
+
+        # Create the user
+        user = User.objects.create_user(**validated_data)
+
+        # Create the user detail record
+        USER_DETAIL.objects.create(user=user, role=role)
+
         return user
+
     
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -211,7 +221,9 @@ class ApointmentPOSTserializer(serializers.ModelSerializer):
       if date.today()>value :
          raise serializers.ValidationError(f"NOT APPOINTMENT AVIALBLE AT THAT TIME , PLEASE BOOk APPOINTMENT AFTER{date.today()}")  
       return value 
-   
+     
+
+     
 
    
        

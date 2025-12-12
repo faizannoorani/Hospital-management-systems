@@ -34,7 +34,9 @@ class Doctor(models.Model):
 
 
     class Meta:
-        db_table='Doctors' 
+        db_table='Doctors'   
+           
+
 
 class Patients(models.Model):
     user=models.OneToOneField(User,on_delete=models.CASCADE) 

@@ -5,6 +5,17 @@ from rest_framework import status
 from django.http import JsonResponse 
 from myapp.utils import ApointmentstatusEnum
 
+
+
+from django.utils.deprecation import MiddlewareMixin
+from django.contrib.auth import get_user_model
+from .models import UserDetail
+import json
+
+User = get_user_model()
+
+
+
 class My_middleware: 
     def __init__(self,get_response): 
         self.get_response=get_response 
