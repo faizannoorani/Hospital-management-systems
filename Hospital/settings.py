@@ -21,7 +21,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = 'django-insecure-abcdef1234567890abcdef1234567890abcdef1234567890'
 DEBUG = os.getenv("DEBUG", "True") == "True"
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -37,11 +37,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 SITE_ID = 1
 
-# Installed apps
+
 INSTALLED_APPS = [
     'django.contrib.sites',  # ✅ COMMA is required
-    'daphne',
-    "debug_toolbar",
+    
+    'debug_toolbar',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -58,12 +58,9 @@ INSTALLED_APPS = [
     
     'myapp', 
     'django_celery_results',
-    'django_celery_beat',
-    
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    'allauth.socialaccount.providers.google'
 ]
 
 SOCIALACCOUNT_PROVIDER = {
@@ -78,19 +75,19 @@ INTERNAL_IPS = ["127.0.0.1"]
 ASGI_APPLICATION = 'Hospital.asgi.application'
 WSGI_APPLICATION = 'Hospital.wsgi.application'
 
-# Database
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',  
-        'NAME': os.getenv("DATABASE_NAME"),                  
-        'USER': os.getenv("DATABASE_USER"),              
-        'PASSWORD': os.getenv("DATABASE_PASSWORD"),              
+        'NAME':    'hospital',
+        'USER':     'root'    ,         
+        'PASSWORD': 'faizan123@A1',
         'HOST': '127.0.0.1',
         'PORT': '3306',                
     } 
 }
 
-# Password validation
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
@@ -98,20 +95,20 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
 ]
 
-# Internationalization
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
+
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Default primary key
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# JWT settings
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -120,14 +117,14 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# REST Framework (merged and fixed)
+#
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',  # optional, browsable API
+        'rest_framework.authentication.SessionAuthentication', 
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny',  # change in views for authenticated endpoints
+        'rest_framework.permissions.AllowAny',  
     ),
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -142,7 +139,7 @@ REST_FRAMEWORK = {
     }
 }
 
-# Middleware
+
 MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",
@@ -155,7 +152,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# Templates
+
 ROOT_URLCONF = 'Hospital.urls'
 TEMPLATES = [
     {
@@ -165,7 +162,7 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
-                'django.template.context_processors.request',  # Required by allauth
+                'django.template.context_processors.request', 
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -173,7 +170,7 @@ TEMPLATES = [
     },
 ]
 
-# CORS settings
+
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
@@ -193,23 +190,36 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Celery
+
+
+
+
+
+
+
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+
 CELERY_BEAT_SCHEDULE = {
-    "check-pending-amounts-every-minute": {
-        "task": "myapp.tasks.check_pending_amounts",  
-        "schedule": crontab(minute="*/1"),
-        "args": (),
+    "birthday_reminder": {
+        "task": "myapp.tasks.birthday_reminder",
+        "schedule": crontab(
+            minute="*/1",        
+            hour="*",             
+            day_of_week="*",       
+            day_of_month="*",     
+            month_of_year="*",    
+        ),
     },
 }
+CELERY_BEAT_MAX_LOOP_INTERVAL = 10 
 
-# Authentication backends
+
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 )
 
-# Login redirect
+
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'

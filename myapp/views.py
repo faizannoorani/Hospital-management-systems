@@ -278,7 +278,8 @@ def login(request):
 @throttle_classes([Patientthrottles])
 @api_view(["GET", "POST", "PUT", "DELETE", "PATCH"])
 @authentication_classes([JWTAuthentication]) 
-@permission_classes([IsAuthenticated,RoleBasedPermission])
+@permission_classes([IsAuthenticated])
+
 
  
 
@@ -316,8 +317,6 @@ def DETAILS (request,id=None):
     
        
 @api_view(['DELETE','POST','GET','PATCH','PUT'])  
-@authentication_classes([JWTAuthentication]) 
-@permission_classes([IsAuthenticated])
 
 
 def doctor_detail(request): 

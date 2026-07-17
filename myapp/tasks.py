@@ -1,24 +1,25 @@
 
+
+
 from celery import shared_task
-from .models import Bill
-from .models import Patients
-from .models import User 
+from datetime import date, timedelta
+from .models import Bill, Patients, User
 import logging
 
-from celery import shared_task
-from .models import Bill
-
-from celery import shared_task
-from .models import Bill
-
 @shared_task
-def check_pending_amounts():
-    bills = Bill.objects.filter(amount_status='PENDING').select_related(
-        "appointment__patient"
-    )
+def birthday_reminder():
+    
+    today = date.today()
+    for i in range(1, 6):
+        
+        upcoming_date = today + timedelta(days=i)
+        
+        patients = Patients.objects.filter(
+            date_of_birth__month=upcoming_date.month,
+            date_of_birth__day=upcoming_date.day,
+        )
+        
+        for patient in patients:
+            print(f"🎂 Happy Birthday {patient.name}! Your birthday is on {upcoming_date.strftime('%d %B %Y')}")   
+            
 
-    for b in bills:
-        print(f"Patient Name: {b.appointment.patient.name} amount is pending")
-
-    print("Hello! Celery task is running 🚀")
-    return "All pending bill users printed"
